@@ -24,7 +24,7 @@ function ptmf_load_textdomain() {
 add_action( 'plugins_loaded', 'ptmf_load_textdomain' );
 
 function ptmf_admin_assets() {
-	wp_enqueue_style( 'omb-admin-style', plugin_dir_url( __FILE__ ) . "assets/admin/css/style.css", null, time() );
+	wp_enqueue_style( 'ptmf-admin-style', plugin_dir_url( __FILE__ ) . "assets/admin/css/style.css", null, time() );
 }
 
 function ptmf_add_metabox() {
@@ -44,8 +44,13 @@ function ptmf_save_metabox( $post_id ) {
 	}
 
 	$selected_post_id = $_POST['ptmf_posts'];
+	$selected_term_id = $_POST['ptmf_term'];
 	if ( $selected_post_id > 0 ) {
 		update_post_meta( $post_id, 'ptmf_selected_posts', $selected_post_id );
+	}
+
+	if ( $selected_term_id > 0 ) {
+		update_post_meta( $post_id, 'ptmf_selected_term', $selected_term_id );
 	}
 	return $post_id;
 }
@@ -55,6 +60,8 @@ add_action( 'save_post', 'ptmf_save_metabox' );
 function ptmf_display_metabox($post) {
 
 	$selected_post_id = get_post_meta($post->ID,'ptmf_selected_posts',true);
+	$selected_term_id = get_post_meta($post->ID,'ptmf_selected_term',true);
+
 	wp_nonce_field( 'ptmf_posts', 'ptmf_posts_nonce' );
 
 	$args = array(
@@ -67,14 +74,30 @@ function ptmf_display_metabox($post) {
 	while ( $_posts->have_posts() ) {
 		$extra = '';
 		$_posts->the_post();
-		if(get_the_ID() == $selected_post_id){
+		if(in_array(get_the_ID(),$selected_post_id)){
 			$extra = 'selected';
 		}
 		$dropdown_list .= sprintf( "<option %s value='%s'>%s</option>", $extra, get_the_ID(), get_the_title() );
 	}
 	wp_reset_query();
 
+    $_terms = get_terms(array(
+    	'taxonomy'=>'genre',
+	    'hide_empty' => false,
+    ));
+
+	$term_dropdown_list = '';
+    foreach($_terms as $_term){
+	    $extra = '';
+	    if($_term->term_id == $selected_term_id){
+		    $extra = 'selected';
+	    }
+	    $term_dropdown_list .= sprintf( "<option %s value='%s'>%s</option>", $extra, $_term->term_id, $_term->name );
+    }
+
+
 	$label        = __( 'Select Posts', 'post-tax-metafield' );
+	$label2        = __( 'Select Term', 'post-tax-metafield' );
 	$metabox_html = <<<EOD
 <div class="fields">
 	<div class="field_c">
@@ -82,9 +105,22 @@ function ptmf_display_metabox($post) {
 			<label>{$label}</label>
 		</div>
 		<div class="input_c">
-			<select name="ptmf_posts" id="ptmf_posts">
+			<select multiple="multiple" name="ptmf_posts[]" id="ptmf_posts">
 				<option value="0">{$label}</option>
 				{$dropdown_list}
+			</select>
+		</div>
+		<div class="float_c"></div>
+	</div>
+	
+	<div class="field_c">
+		<div class="label_c">
+			<label for="ptmf_term">{$label2}</label>
+		</div>
+		<div class="input_c">
+			<select  name="ptmf_term" id="ptmf_term">
+				<option value="0">{$label2}</option>
+				{$term_dropdown_list}
 			</select>
 		</div>
 		<div class="float_c"></div>
